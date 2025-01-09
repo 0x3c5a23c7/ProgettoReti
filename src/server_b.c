@@ -8,12 +8,13 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#define PORTA 5000
-#define NUMERO_BIGLIETTI 20
+#define PORTA 3000
 #define CLIENT_IP_ADDRESS_SIZE 20
 #define CLIENT_BUFFER_MESS 100
+#define CLIENT_TEMP_BUFFER 10
 #define SERVER_MESSAGE_SIZE 100 
 
+int biglietti_disponibili = 10;
 struct sockaddr_in server_socket_address;
 
 void inizializza_server(int*); 
@@ -58,7 +59,7 @@ void inizializza_server(int *server_socket_fd)
 void accetta_connessioni(int server_socket_fd)
 {
     /* dichiarazione delle variabili necessarie per la gestione delle connessioni */
-    int*                client_socket_fd = malloc(sizeof(int*));
+    int*                client_socket_fd = malloc(sizeof(int));
     struct sockaddr_in  client_socket_address;
     socklen_t           client_socket_len = sizeof(client_socket_address);
 
@@ -96,36 +97,93 @@ void* gestisci_client (void* client_socket_fd_ptr)
     struct sockaddr_in  client_socket_address;
     socklen_t           client_socket_addr_len = sizeof(client_socket_address);
 
-    /* biglietti comprati dal client */
-    int biglietti_disponibili = NUMERO_BIGLIETTI;
-    int biglietti_comprati = 0;
+    /* variabili utili per i biglietti comprati dal client */
+    char*   temp_client_biglietti = malloc(CLIENT_TEMP_BUFFER * sizeof(char));
+    int     biglietti_comprati = 0;
 
     /* messaggio da parte del server */
-    char* messaggio_server = malloc(SERVER_MESSAGE_SIZE * sizeof(char));
+    char*   messaggio_server = malloc(SERVER_MESSAGE_SIZE * sizeof(char));
+
+    /* controlliamo se la memoria è stata allocata correttamente */
+    if (!messaggio_server || !client_ip_address || !temp_client_biglietti) {
+        perror("server errore 'malloc'");
+        close(client_socket_fd);
+        exit(1);
+    }
 
     /* ricaviamo l'indirizzo del client in maniera leggibile */
     getpeername(client_socket_fd, (struct sockaddr*)&client_socket_address, &client_socket_addr_len);
     inet_ntop(AF_INET, (struct in_addr*)&client_socket_address.sin_addr, client_ip_address, client_socket_addr_len);
     printf("+++ Il server ha ricevuto una connessione da: %s\n", client_ip_address);
 
+    /**
+     * In base alla quantità di biglietti disponibili: 
+     * <= 0 -> biglietti terminati, termina il client chiudendo la sua socket
+     * >    -> biglietti disponibili, gestisci l'acquisto del client e poi chiudi la sua socket 
+     */
     if (biglietti_disponibili > 0) {
-        snprintf(messaggio_server, SERVER_MESSAGE_SIZE, "I biglietti sono disponibili: %d", NUMERO_BIGLIETTI); 
+        snprintf(messaggio_server, SERVER_MESSAGE_SIZE, "I biglietti disponibili sono: %d", biglietti_disponibili); 
         if (send(client_socket_fd, messaggio_server, SERVER_MESSAGE_SIZE, 0) == -1) {
             perror("errore server 'send'");
             exit(1);
         }
 
         /// ACQUISTO DAL CLIENT, AGGIORNA
+        
+        /* leggiamo la risposta del client, esso manda al server la quantità di biglietti da acquistare */
+        if (read(client_socket_fd, temp_client_biglietti, CLIENT_TEMP_BUFFER) == -1) {
+            perror("errore server 'read'");
+            exit(1);
+        }
+        
+        /* controllo se il client ha mandato un input valido (solo numeri) */ 
+        char* endptr;
+        biglietti_comprati = strtol(temp_client_biglietti, &endptr, 10);
 
-        biglietti_disponibili -= biglietti_comprati;
+        /* se l'input non è valido termino il client */
+        if ((*endptr != '\n' && *endptr != '\0') || biglietti_comprati < 1) {
+            printf("!!! Il client ha inserito un valore non valido\n");
+            snprintf(messaggio_server, SERVER_MESSAGE_SIZE, "\nInput non valido.");
+            send(client_socket_fd, messaggio_server, strlen(messaggio_server), 0);
+            close(client_socket_fd);
+        } else {
+            /* trasformiamo il numero di biglietti da stringa a intero */
+            biglietti_comprati = atoi(temp_client_biglietti);
+
+            if (biglietti_comprati <= biglietti_disponibili) {
+                printf("<<< Il client ha deciso di acquistare: %d biglietto/i\n", biglietti_comprati);
+                messaggio_server = "\nHai correttamente acquistato i/il biglietti/o";
+                if (send(client_socket_fd, messaggio_server, strlen(messaggio_server), 0) == -1) {
+                    perror("errore server 'send'");
+                    exit(1);
+                }
+                close(client_socket_fd);
+
+                /* calcolo biglietti disponibili dopo l'acquisto del client */
+                biglietti_disponibili -= biglietti_comprati;
+                printf("\nBiglietti disponibili attualmente: %d\n", biglietti_disponibili);
+            } else {
+                printf("!!! Il client ha chiesto più biglietti di quelli disponibili\n");
+                messaggio_server = "\nSiamo spiacenti, impossibile acquistare la quantità di biglietti specificata";
+                if (send(client_socket_fd, messaggio_server, strlen(messaggio_server), 0) == -1) {
+                    perror("errore server 'send'");
+                    exit(1);
+                }
+                close(client_socket_fd);
+            }
+        }
     } else {
+        /* biglietti terminati, mandiamo al client il messaggio di terminazione */
+        printf("!!! I biglietti sono terminati\n");
         messaggio_server = "Biglietti non disponibili";
         if (send(client_socket_fd, messaggio_server, strlen(messaggio_server), 0) == -1) {
             perror("errore server 'send'");
+            close(client_socket_fd);
             exit(1);
         }
+        close(client_socket_fd);
+        pthread_exit(((void*)0));
     }
-    printf(">>> Il server ha inviato: %s [%zu - bytes]\n", messaggio_server, strlen(messaggio_server));
-    
+
     return ((void*)0);
 }
