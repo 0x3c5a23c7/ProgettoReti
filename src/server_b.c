@@ -8,7 +8,7 @@
 #include <unistd.h>
 #include <pthread.h>
 
-#define PORTA 3000
+#define PORTA 4000
 #define CLIENT_IP_ADDRESS_SIZE 20
 #define CLIENT_BUFFER_MESS 100
 #define CLIENT_TEMP_BUFFER 10
@@ -34,6 +34,7 @@ int main(void)
 
 void inizializza_server(int *server_socket_fd)
 {
+    /* creiamo la socket per il server e la configuriamo */
     if ((*server_socket_fd = socket(AF_INET, SOCK_STREAM, 0)) < 0) {
         perror("errore nell'inizializzazione della socket del server");
         exit(1);
@@ -64,6 +65,7 @@ void accetta_connessioni(int server_socket_fd)
     socklen_t           client_socket_len = sizeof(client_socket_address);
 
     while(1) {
+        /* accetta connessioni dai client in loop */
         if ((*client_socket_fd = accept(server_socket_fd, (struct sockaddr*)&client_socket_address, &client_socket_len)) == -1) {
             perror("errore server 'accept'");
             /* nel caso in cui la connessione fallisca, il server libera la memoria e resta in attesa di altre connessioni */
@@ -86,7 +88,7 @@ void accetta_connessioni(int server_socket_fd)
     close(*client_socket_fd);
 }
 
-void* gestisci_client (void* client_socket_fd_ptr) 
+void* gestisci_client(void* client_socket_fd_ptr) 
 {
     /* otteniamo il valore puntato da client_socket_fd_ptr */
     int client_socket_fd = *(int*)client_socket_fd_ptr;
@@ -119,7 +121,7 @@ void* gestisci_client (void* client_socket_fd_ptr)
     /**
      * In base alla quantità di biglietti disponibili: 
      * <= 0 -> biglietti terminati, termina il client chiudendo la sua socket
-     * >    -> biglietti disponibili, gestisci l'acquisto del client e poi chiudi la sua socket 
+     * > 0  -> biglietti disponibili, gestisci l'acquisto del client e poi chiudi la sua socket 
      */
     if (biglietti_disponibili > 0) {
         snprintf(messaggio_server, SERVER_MESSAGE_SIZE, "I biglietti disponibili sono: %d", biglietti_disponibili); 

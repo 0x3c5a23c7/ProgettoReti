@@ -7,7 +7,7 @@
 #include <sys/types.h>
 #include <unistd.h>
 
-#define PORTA_SERVER 3000
+#define PORTA_SERVER 4000
 #define IP_SERVER "127.0.0.1"
 #define CLIENT_BUFFER_SIZE 1024
 #define TEMP_BUFFER_SIZE 10
