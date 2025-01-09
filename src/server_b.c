@@ -9,7 +9,7 @@
 #include <pthread.h>
 
 #define PORTA 5000
-#define NUMERO_BIGLIETTI 10
+#define NUMERO_BIGLIETTI 20
 #define CLIENT_IP_ADDRESS_SIZE 20
 #define CLIENT_BUFFER_MESS 100
 #define SERVER_MESSAGE_SIZE 100 
@@ -96,7 +96,11 @@ void* gestisci_client (void* client_socket_fd_ptr)
     struct sockaddr_in  client_socket_address;
     socklen_t           client_socket_addr_len = sizeof(client_socket_address);
 
-    /* DEBUG messaggio da parte del server */
+    /* biglietti comprati dal client */
+    int biglietti_disponibili = NUMERO_BIGLIETTI;
+    int biglietti_comprati = 0;
+
+    /* messaggio da parte del server */
     char* messaggio_server = malloc(SERVER_MESSAGE_SIZE * sizeof(char));
 
     /* ricaviamo l'indirizzo del client in maniera leggibile */
@@ -104,12 +108,16 @@ void* gestisci_client (void* client_socket_fd_ptr)
     inet_ntop(AF_INET, (struct in_addr*)&client_socket_address.sin_addr, client_ip_address, client_socket_addr_len);
     printf("+++ Il server ha ricevuto una connessione da: %s\n", client_ip_address);
 
-    if (NUMERO_BIGLIETTI > 0) {
+    if (biglietti_disponibili > 0) {
         snprintf(messaggio_server, SERVER_MESSAGE_SIZE, "I biglietti sono disponibili: %d", NUMERO_BIGLIETTI); 
         if (send(client_socket_fd, messaggio_server, SERVER_MESSAGE_SIZE, 0) == -1) {
             perror("errore server 'send'");
             exit(1);
         }
+
+        /// ACQUISTO DAL CLIENT, AGGIORNA
+
+        biglietti_disponibili -= biglietti_comprati;
     } else {
         messaggio_server = "Biglietti non disponibili";
         if (send(client_socket_fd, messaggio_server, strlen(messaggio_server), 0) == -1) {

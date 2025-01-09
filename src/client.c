@@ -50,6 +50,8 @@ void inizializza_client(int *client_socket_fd)
 void comunica_con_server(int client_socket_fd) {
     char*   client_buffer = malloc(CLIENT_BUFFER_SIZE * sizeof(char));
     ssize_t byte_letti;
+    int     numero_biglietti = 0;
+    int     biglietti_acquistati = 0;
 
     /* legge il contenuto inviato dal server */
     if ((byte_letti = read(client_socket_fd, client_buffer, CLIENT_BUFFER_SIZE)) < 0) {
@@ -58,7 +60,19 @@ void comunica_con_server(int client_socket_fd) {
     }
 
     client_buffer[strcspn(client_buffer, "\n")] = 0;
-    printf("<<< %s [%zu - bytes]\n", client_buffer, byte_letti);
+    printf("<<< %s [%zu - bytes]\n", client_buffer, strlen(client_buffer));
+
+    /* ricaviamo il numero di biglietti disponibili */
+    if (sscanf(client_buffer, "I biglietti sono disponibili: %d", &numero_biglietti) == 1) {
+        printf("+++ Inserire quantità di biglietti da acquistare: ");
+
+        /* leggiamo il numero di biglietti da acquistare */
+        /// COMPRA
+
+    } else {
+        perror("errore client 'sscanf'");
+        exit(1);
+    }
 
     /* chiudiamo la socket del client e liberiamo la memoria allocata dinamicamente */
     close(client_socket_fd);
