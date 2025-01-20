@@ -154,7 +154,7 @@ void* gestisci_client(void* client_socket_fd_ptr)
 
             if (biglietti_comprati <= biglietti_disponibili) {
                 printf("<<< Il client ha deciso di acquistare: %d biglietto/i\n", biglietti_comprati);
-                messaggio_server = "\nHai correttamente acquistato i/il biglietti/o";
+                strncpy(messaggio_server, "\nHai correttamente acquistato i/il biglietti/o", SERVER_MESSAGE_SIZE);
                 if (send(client_socket_fd, messaggio_server, strlen(messaggio_server), 0) == -1) {
                     perror("errore server 'send'");
                     exit(1);
@@ -166,7 +166,7 @@ void* gestisci_client(void* client_socket_fd_ptr)
                 printf("\nBiglietti disponibili attualmente: %d\n", biglietti_disponibili);
             } else {
                 printf("!!! Il client ha chiesto più biglietti di quelli disponibili\n");
-                messaggio_server = "\nSiamo spiacenti, impossibile acquistare la quantità di biglietti specificata";
+                strncpy(messaggio_server, "\nSiamo spiacenti, impossibile acquistare la quantità di biglietti specificata", SERVER_MESSAGE_SIZE);
                 if (send(client_socket_fd, messaggio_server, strlen(messaggio_server), 0) == -1) {
                     perror("errore server 'send'");
                     exit(1);
@@ -177,7 +177,7 @@ void* gestisci_client(void* client_socket_fd_ptr)
     } else {
         /* biglietti terminati, mandiamo al client il messaggio di terminazione */
         printf("!!! I biglietti sono terminati\n");
-        messaggio_server = "Biglietti non disponibili";
+        strncpy(messaggio_server, "Biglietti non disponibili", SERVER_MESSAGE_SIZE);
         if (send(client_socket_fd, messaggio_server, strlen(messaggio_server), 0) == -1) {
             perror("errore server 'send'");
             close(client_socket_fd);
